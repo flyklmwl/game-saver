@@ -1,6 +1,10 @@
-import sys
+import os
+import time
+import argparse
+import py7zr
 import ttkbootstrap as ttk
 from ttkbootstrap.constants import *
+import shutil
 
 
 class SaveGui(ttk.Frame):
@@ -37,13 +41,30 @@ class SaveGui(ttk.Frame):
 
     def on_save(self):
         """备份 目录"""
+        # 备份参数
         srcdir = self.path_var.get()
+        _7zfile = f"SaveFile_{time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())}.7z"
+        # 创建备份文件夹
+        try:
+            os.makedirs(f"./savedata/{gamename}")
+        except FileExistsError:
+            print("文件夹已存在！")
+        # 备份开始
+        with py7zr.SevenZipFile(f"./savedata/{gamename}/{_7zfile}", 'w') as archive:
+            archive.writeall(srcdir, "savefile")
         print(f"从{srcdir}拷贝到destdir")
         print("备份完成")
 
 
 if __name__ == '__main__':
-    gamedir = sys.argv[1]
-    app = ttk.Window("Save Gui", "journal")
+    # 设置命令行参数用来接收备份参数
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--game_name", help="timer name")
+    parser.add_argument("-d", "--directory", help="project name")
+    args = parser.parse_args()
+    gamedir = args.directory
+    gamename = args.game_name
+    # 启动界面
+    app = ttk.Window(gamename, "journal")
     SaveGui(app)
     app.mainloop()
