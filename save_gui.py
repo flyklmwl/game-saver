@@ -31,23 +31,8 @@ class SaveGui(ttk.Frame):
         # 加载目录行
         self.create_backup_row()
         self.create_backup2_row()
+        self.create_manager_row()
         self.create_results_view()
-
-    def create_backup_row(self):
-        """游戏存档备份"""
-        backup_row = ttk.Frame(self.option_lf)
-        backup_row.pack(fill=X, expand=YES)
-        backup_lbl = ttk.Label(backup_row, text="备份目录", width=8)
-        backup_lbl.pack(side=LEFT, padx=(15, 0))
-        backup_ent = ttk.Entry(backup_row, textvariable=self.gamedir_var)
-        backup_ent.pack(side=LEFT, fill=X, expand=YES, padx=5)
-        browse_btn = ttk.Button(
-            master=backup_row,
-            text="查询存档",
-            command=self.show_saves,
-            width=8
-        )
-        browse_btn.pack(side=LEFT, padx=5)
 
     def _init_env(self):
         # 创建备份文件夹
@@ -68,6 +53,23 @@ class SaveGui(ttk.Frame):
             print("加载入文件完成...")
         self._check_save_file()
 
+    def create_backup_row(self):
+        """游戏存档备份"""
+        backup_row = ttk.Frame(self.option_lf)
+        backup_row.pack(fill=X, expand=YES)
+        backup_lbl = ttk.Label(backup_row, text="备份目录", width=8)
+        backup_lbl.pack(side=LEFT, padx=(15, 0))
+        backup_ent = ttk.Entry(backup_row, textvariable=self.gamedir_var)
+        backup_ent.pack(side=LEFT, fill=X, expand=YES, padx=5)
+        browse_btn = ttk.Button(
+            master=backup_row,
+            text="查询存档",
+            command=self.show_saves,
+            bootstyle=INFO,
+            width=8,
+        )
+        browse_btn.pack(side=LEFT, padx=5)
+
     def create_backup2_row(self):
         backup_row2 = ttk.Frame(self.option_lf)
         backup_row2.pack(fill=X, expand=YES, pady=15)
@@ -79,9 +81,22 @@ class SaveGui(ttk.Frame):
             master=backup_row2,
             text="备份存档",
             command=self.on_save,
-            width=8
+            bootstyle=SUCCESS,
+            width=8,
         )
         browse_btn.pack(side=LEFT, padx=5)
+
+    def create_manager_row(self):
+        backup_row3 = ttk.Frame(self.option_lf)
+        backup_row3.pack(fill=X, expand=YES, pady=15)
+        browse_btn = ttk.Button(
+            master=backup_row3,
+            text="删除存档",
+            command=self.on_delete,
+            width=8,
+            bootstyle=DANGER,
+        )
+        browse_btn.pack(side=LEFT, padx=15)
 
     def create_results_view(self):
         """Add result treeview to labelframe 添加图形结果"""
@@ -137,7 +152,7 @@ class SaveGui(ttk.Frame):
         print(f"从{srcdir}拷贝到destdir")
         print("备份完成")
         # 加载配置文件
-        with open(f"./savedata/{gamename}/Saves.json", 'r', encoding='utf-8') as load_f:
+        with open(self.save_env, 'r', encoding='utf-8') as load_f:
             save_dict = json.load(load_f)
         # 写入配置文件
         save_dict['saves'].append(
@@ -153,6 +168,23 @@ class SaveGui(ttk.Frame):
             json.dump(save_dict, f, ensure_ascii=False)
         print("加载入文件完成...")
         self.show_saves()
+
+    def on_delete(self):
+        selected = self.resultview.focus()
+        # values 拿到的是一个列表，只能按顺序取值
+        values = self.resultview.item(selected)["values"]
+        save_path = values[2]
+        os.remove(save_path)
+        with open(self.save_env, 'r', encoding='utf-8') as load_f:
+            save_dict = json.load(load_f)
+            saves = save_dict['saves']
+        saves = [save for save in saves if save['path'] != save_path]
+        save_dict['saves'] = saves
+        # 写入配置文件
+        with open(self.save_env, "w+", encoding='utf-8') as f:
+            json.dump(save_dict, f, ensure_ascii=False)
+        self.show_saves()
+        print("删除存档")
 
     def show_saves(self):
         for i in self.resultview.get_children():
