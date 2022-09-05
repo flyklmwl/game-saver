@@ -89,14 +89,30 @@ class SaveGui(ttk.Frame):
     def create_manager_row(self):
         backup_row3 = ttk.Frame(self.option_lf)
         backup_row3.pack(fill=X, expand=YES, pady=15)
-        browse_btn = ttk.Button(
+        browse_btn1 = ttk.Button(
+            master=backup_row3,
+            text="存档目录",
+            command=lambda: os.startfile(gamedir),
+            width=8,
+            bootstyle=INFO,
+        )
+        browse_btn1.pack(side=LEFT, padx=15)
+        browse_btn2 = ttk.Button(
             master=backup_row3,
             text="删除存档",
             command=self.on_delete,
             width=8,
             bootstyle=DANGER,
         )
-        browse_btn.pack(side=LEFT, padx=15)
+        browse_btn2.pack(side=LEFT, padx=15)
+        browse_btn3 = ttk.Button(
+            master=backup_row3,
+            text="恢复存档",
+            command=self.on_restore,
+            width=8,
+            bootstyle=SUCCESS,
+        )
+        browse_btn3.pack(side=LEFT, padx=15)
 
     def create_results_view(self):
         """Add result treeview to labelframe 添加图形结果"""
@@ -147,9 +163,8 @@ class SaveGui(ttk.Frame):
         srcdir = self.gamedir_var.get()
         # 备份开始
         with py7zr.SevenZipFile(self.save_path, 'w') as archive:
-            archive.writeall(srcdir, "savefile")
+            archive.writeall(srcdir, self.save_name[:-3])
         os.path.getsize(self.save_path)
-        print(f"从{srcdir}拷贝到destdir")
         print("备份完成")
         # 加载配置文件
         with open(self.save_env, 'r', encoding='utf-8') as load_f:
@@ -166,7 +181,7 @@ class SaveGui(ttk.Frame):
         )
         with open(self.save_env, "w+", encoding='utf-8') as f:
             json.dump(save_dict, f, ensure_ascii=False)
-        print("加载入文件完成...")
+        print("写入配置文件完成...")
         self.show_saves()
 
     def on_delete(self):
@@ -184,14 +199,26 @@ class SaveGui(ttk.Frame):
         with open(self.save_env, "w+", encoding='utf-8') as f:
             json.dump(save_dict, f, ensure_ascii=False)
         self.show_saves()
-        print("删除存档")
+        print("删除存档完成!")
+
+    def on_restore(self):
+        # 获取要恢复的存档文件路径
+        selected = self.resultview.focus()
+        values = self.resultview.item(selected)["values"]
+        save_path = values[2]
+        # 恢复目录
+        os.rename(gamedir, f"{gamedir}({round(time.time())})")
+        with py7zr.SevenZipFile(save_path, 'r') as archive:
+            archive.extractall(f"./savedata/{gamename}/")
+        shutil.move(save_path[:-3], gamedir)
+        print("恢复存档完成!!!")
 
     def show_saves(self):
         for i in self.resultview.get_children():
             self.resultview.delete(i)
         with open(self.save_env, "r", encoding='utf-8') as load_f:
             saves_info = json.load(load_f)
-        print(saves_info)
+        # print(saves_info)
         for save_info in saves_info['saves']:
             save_name = save_info['name']
             save_desc = save_info['describe']
