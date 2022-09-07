@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import time
 import argparse
@@ -99,20 +100,28 @@ class SaveGui(ttk.Frame):
         browse_btn1.pack(side=LEFT, padx=15)
         browse_btn2 = ttk.Button(
             master=backup_row3,
+            text="所有备份",
+            command=lambda: os.startfile(f"{os.getcwd()}/savedata"),
+            width=8,
+            bootstyle=INFO,
+        )
+        browse_btn2.pack(side=LEFT, padx=15)
+        browse_btn3 = ttk.Button(
+            master=backup_row3,
             text="删除存档",
             command=self.on_delete,
             width=8,
             bootstyle=DANGER,
         )
-        browse_btn2.pack(side=LEFT, padx=15)
-        browse_btn3 = ttk.Button(
+        browse_btn3.pack(side=LEFT, padx=15)
+        browse_btn4 = ttk.Button(
             master=backup_row3,
             text="恢复存档",
             command=self.on_restore,
             width=8,
             bootstyle=SUCCESS,
         )
-        browse_btn3.pack(side=LEFT, padx=15)
+        browse_btn4.pack(side=LEFT, padx=15)
 
     def create_results_view(self):
         """Add result treeview to labelframe 添加图形结果"""
@@ -253,14 +262,40 @@ class SaveGui(ttk.Frame):
             return f"{round(kb, 2)}kb"
 
 
+def remote_backup_fun(host):
+    # 检测远程主机是否在线
+    output = os.popen(f"ping {host} -n 1")
+    if "TTL" not in output.readlines()[2]:
+        print("主机没有在线！！！")
+        time.sleep(15)
+        exit(0)
+    # 开始同步
+    os.system(f"ROBOCOPY ./savedata N:/GameSaver/savedata/savedata-{time.strftime('%A')} /mir")
+    os.system(f"ROBOCOPY %appdata%\Playnite N:/GameSaver/Playnite/Playnite-{time.strftime('%A')} /mir")
+    time.sleep(100)
+
+
 if __name__ == '__main__':
     # 设置命令行参数用来接收备份参数
     parser = argparse.ArgumentParser()
-    parser.add_argument("-n", "--game_name", help="timer name")
-    parser.add_argument("-d", "--directory", help="project name")
+    parser.add_argument("-n", "--game_name", help="game name")
+    parser.add_argument("-d", "--directory", help="saver dir")
+    parser.add_argument("-b", "--remote_backup", help="backup dir")
     args = parser.parse_args()
     gamedir = args.directory
     gamename = args.game_name
+    remotedir = args.remote_backup
+    # 处理存档路径中包含系统变量的情况
+    if "%" in gamedir:
+        print("路径中含有系统变量！")
+        sys_env = os.environ[re.search(".*\%(.*)\%", gamedir).group(1)]
+        gamedir = re.sub(r'\%.*\%', lambda m: sys_env, gamedir)
+    # 远程备份
+    if remotedir:
+        print("这里是进行远程备份操作")
+        remote_backup_fun(remotedir)
+        time.sleep(105)
+        exit(0)
     # 启动界面
     app = ttk.Window(gamename, "journal")
     # app.geometry('800x500')
