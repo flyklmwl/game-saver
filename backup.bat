@@ -1,1 +1,0 @@
-pipenv run save_gui.py -b "172.16.10.150"

@@ -15,11 +15,11 @@ class SaveGui(ttk.Frame):
         super().__init__(master, padding=15)
         # 程序变量
         self.backuptime = ""
-        self.save_env = f"./savedata/{gamename}/Saves.json"
+        self.save_env = f"./savedata/{gamedbid}/Saves.json"
         self.gamedir_var = ttk.StringVar(value=gamedir)
         self.save_desc = ttk.StringVar(value="")
         self.save_name = f"SaveFile_{self.backuptime}.7z"
-        self.save_path = f"./savedata/{gamename}/{self.save_name}"
+        self.save_path = f"./savedata/{gamedbid}/{self.save_name}"
 
         self._init_env()
         self.pack(fill=BOTH, expand=YES)
@@ -36,22 +36,27 @@ class SaveGui(ttk.Frame):
         self.create_results_view()
 
     def _init_env(self):
+        # 判断是否存档以游戏名字命名的文件夹，有则变更为gamedbid文件夹
+        if os.path.exists(f"./savedata/{gamename}"):
+            os.rename(f"./savedata/{gamename}", f"./savedata/{gamedbid}")
         # 创建备份文件夹
         try:
-            os.makedirs(f"./savedata/{gamename}")
+            os.makedirs(f"./savedata/{gamedbid}")
         except FileExistsError:
             print("文件夹已存在！")
         # 写入配置文件
         if os.path.exists(self.save_env):
-            pass
+            with open(self.save_env, 'r', encoding='utf-8') as load_f:
+                save_dict = json.load(load_f)
+            save_dict['title'] = gamename
         else:
             save_dict = {
                 "title": gamename,
                 "saves": [],
             }
-            with open(self.save_env, "w+", encoding='utf-8') as f:
-                json.dump(save_dict, f, ensure_ascii=False)
-            print("加载入文件完成...")
+        with open(self.save_env, "w+", encoding='utf-8') as f:
+            json.dump(save_dict, f, ensure_ascii=False)
+        print("加载入文件完成...")
         self._check_save_file()
 
     def create_backup_row(self):
@@ -162,12 +167,14 @@ class SaveGui(ttk.Frame):
             width=utility.scale_size(self, 50),
             stretch=False
         )
+        # 启动后立即加载存档信息
+        self.show_saves()
 
     def on_save(self):
         """备份 目录"""
         self.backuptime = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
         self.save_name = f"SaveFile_{self.backuptime}.7z"
-        self.save_path = f"./savedata/{gamename}/{self.save_name}"
+        self.save_path = f"./savedata/{gamedbid}/{self.save_name}"
         # 备份参数
         srcdir = self.gamedir_var.get()
         # 备份开始
@@ -218,7 +225,7 @@ class SaveGui(ttk.Frame):
         # 恢复目录
         os.rename(gamedir, f"{gamedir}({round(time.time())})")
         with py7zr.SevenZipFile(save_path, 'r') as archive:
-            archive.extractall(f"./savedata/{gamename}/")
+            archive.extractall(f"./savedata/{gamedbid}/")
         shutil.move(save_path[:-3], gamedir)
         print("恢复存档完成!!!")
 
@@ -271,8 +278,9 @@ def remote_backup_fun(host):
         exit(0)
     # 开始同步
     os.system(f"ROBOCOPY ./savedata N:/GameSaver/savedata/savedata-{time.strftime('%A')} /mir")
-    os.system(f"ROBOCOPY %appdata%\Playnite N:/GameSaver/Playnite/Playnite-{time.strftime('%A')} /mir")
+    os.system(f"ROBOCOPY ../library N:/GameSaver/Playnite/Playnite-{time.strftime('%A')} /mir")
     time.sleep(100)
+    return 0
 
 
 if __name__ == '__main__':
@@ -281,21 +289,23 @@ if __name__ == '__main__':
     parser.add_argument("-n", "--game_name", help="game name")
     parser.add_argument("-d", "--directory", help="saver dir")
     parser.add_argument("-b", "--remote_backup", help="backup dir")
+    parser.add_argument("-g", "--game_dbid", help="game db id")
     args = parser.parse_args()
     gamedir = args.directory
     gamename = args.game_name
     remotedir = args.remote_backup
-    # 处理存档路径中包含系统变量的情况
-    if "%" in gamedir:
-        print("路径中含有系统变量！")
-        sys_env = os.environ[re.search(".*\%(.*)\%", gamedir).group(1)]
-        gamedir = re.sub(r'\%.*\%', lambda m: sys_env, gamedir)
+    gamedbid = args.game_dbid
     # 远程备份
     if remotedir:
         print("这里是进行远程备份操作")
         remote_backup_fun(remotedir)
         time.sleep(105)
         exit(0)
+    # 处理存档路径中包含系统变量的情况
+    if "%" in gamedir:
+        print("路径中含有系统变量！")
+        sys_env = os.environ[re.search(".*\%(.*)\%", gamedir).group(1)]
+        gamedir = re.sub(r'\%.*\%', lambda m: sys_env, gamedir)
     # 启动界面
     app = ttk.Window(gamename, "journal")
     # app.geometry('800x500')
