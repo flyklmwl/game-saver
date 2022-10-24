@@ -178,10 +178,24 @@ class SaveGui(ttk.Frame):
         # 备份参数
         srcdir = self.gamedir_var.get()
         # 备份开始
-        with py7zr.SevenZipFile(self.save_path, 'w') as archive:
-            archive.writeall(srcdir, self.save_name[:-3])
-        os.path.getsize(self.save_path)
-        print("备份完成")
+        # 游戏目录中指定文件后缀的情况处理
+        if suffix:
+            try:
+                os.makedirs(f"{srcdir}/Saves-{self.backuptime}")
+            except FileExistsError:
+                print("文件夹已存在!!!")
+            for suf in suffix.split(','):
+                for _ in os.listdir(gamedir):
+                    if _.endswith(suf) and os.path.isfile(f"{gamedir}/{_}"):
+                        shutil.copyfile(f"{srcdir}/{_}", f"{srcdir}/Saves-{self.backuptime}/{_}")
+                        with py7zr.SevenZipFile(self.save_path, 'w') as archive:
+                            archive.writeall(f"{srcdir}/Saves-{self.backuptime}", self.save_name[:-3])
+            shutil.rmtree(f"{srcdir}/Saves-{self.backuptime}")
+        else:
+            with py7zr.SevenZipFile(self.save_path, 'w') as archive:
+                archive.writeall(srcdir, self.save_name[:-3])
+            # os.path.getsize(self.save_path)
+            print("备份完成")
         # 加载配置文件
         with open(self.save_env, 'r', encoding='utf-8') as load_f:
             save_dict = json.load(load_f)
@@ -218,16 +232,37 @@ class SaveGui(ttk.Frame):
         print("删除存档完成!")
 
     def on_restore(self):
+        self.backuptime = time.strftime('%Y-%m-%d_%H-%M-%S', time.localtime())
         # 获取要恢复的存档文件路径
         selected = self.resultview.focus()
         values = self.resultview.item(selected)["values"]
         save_path = values[2]
         # 恢复目录
-        os.rename(gamedir, f"{gamedir}({round(time.time())})")
-        with py7zr.SevenZipFile(save_path, 'r') as archive:
-            archive.extractall(f"./savedata/{gamedbid}/")
-        shutil.move(save_path[:-3], gamedir)
-        print("恢复存档完成!!!")
+        if suffix:
+            print(save_path[:-3])
+            with py7zr.SevenZipFile(save_path, 'r') as archive:
+                archive.extractall(f"./savedata/{gamedbid}/")
+            # 保存原存档文件
+            try:
+                os.makedirs(f"{gamedir}/Saves-{self.backuptime}")
+            except FileExistsError:
+                print("文件夹已存在!!!")
+            for suf in suffix.split(','):
+                for _ in os.listdir(gamedir):
+                    if _.endswith(suf) and os.path.isfile(f"{gamedir}/{_}"):
+                        shutil.move(f"{gamedir}/{_}", f"{gamedir}/Saves-{self.backuptime}")
+            for _ in os.listdir(f"{save_path[:-3]}"):
+                # print(_)
+                shutil.copy(f"{save_path[:-3]}/{_}", gamedir)
+            print("恢复存档完成!!!")
+            # 删除解压文件夹
+            shutil.rmtree(f"{save_path[:-3]}")
+        else:
+            os.rename(gamedir, f"{gamedir}({round(time.time())})")
+            with py7zr.SevenZipFile(save_path, 'r') as archive:
+                archive.extractall(f"./savedata/{gamedbid}/")
+            shutil.move(save_path[:-3], gamedir)
+            print("恢复存档完成!!!")
 
     def show_saves(self):
         for i in self.resultview.get_children():
@@ -290,11 +325,13 @@ if __name__ == '__main__':
     parser.add_argument("-d", "--directory", help="saver dir")
     parser.add_argument("-b", "--remote_backup", help="backup dir")
     parser.add_argument("-g", "--game_dbid", help="game db id")
+    parser.add_argument("-su", "--suffix", help="file suffix")
     args = parser.parse_args()
     gamedir = args.directory
     gamename = args.game_name
     remotedir = args.remote_backup
     gamedbid = args.game_dbid
+    suffix = args.suffix
     # 远程备份
     if remotedir:
         print("这里是进行远程备份操作")

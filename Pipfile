@@ -13,6 +13,8 @@ ttkbootstrap = "*"
 pyinstaller = "*"
 rarfile = "*"
 py7zr = {version = "*", index = "pypitunatsinghuaedu"}
+requests = "*"
+tqdm = "*"
 
 [dev-packages]
 
